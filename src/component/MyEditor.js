@@ -13,7 +13,8 @@ import {
     updateClassElement,
     updateStyleElement,
     arrayCount,
-    createObjSize
+    createObjSize,
+    stylesBlock
 } from "../action";
 
 export default function MyEditor() {
@@ -22,6 +23,7 @@ export default function MyEditor() {
     const [blockType, setBlockType] = useState("unstyled");
     const [blockTypeStyle, setBlockTypeStyle] = useState("");
     const [getBlock, setGetBlock] = useState('');
+    const [styleBlock, setStyleBlock] = useState({});
 
     const editor = useRef(null);
     let active = 'bg-gray-200';
@@ -31,6 +33,11 @@ export default function MyEditor() {
     const currentStyle = editorState.getCurrentInlineStyle();
 
     useEffect(() => {
+        BLOCK_TYPES.forEach((el)=>{
+            if(block.getType() === el.style){
+                setGetBlock(el.label.toLowerCase())
+            }
+        })
 
     }, [editorState])
 
@@ -59,64 +66,9 @@ export default function MyEditor() {
 
     }
 
-    let stylesBlock = {
-        'header-one': {
-            element: 'h1'
-        }, 'header-two': {
-            element: 'h2'
-        }, 'header-three': {
-            element: 'h3'
-        }, 'header-four': {
-            element: 'h4'
-        }, 'header-five': {
-            element: 'h5'
-        }, 'header-six': {
-            element: 'h6'
-        }, 'blockquote': {
-            element: 'blockquote'
-        }, 'unordered-list-item': {
-            element: 'li',
-            wrapper: <ul></ul>
-        }, 'ordered-list-item': {
-            element: 'li',
-            wrapper: <ol></ol>
-        }, 'Code Block': {
-            element: 'code-block'
-        }, 'paragraph': {
-            element: 'div',
-            aliasedElements: ['p', 'span'],
-        },
-        'unstyled': {
-            element: 'div',
-            aliasedElements: ['span', 'p'],
-        },
-        'header-one-center':{
-            element:'h1',
-            wrapper:<div className={"grid justify-items-stretch"}/>
-        },
-        'header-one-left':{
-            element:'h1',
-            wrapper:<div className={"grid justify-items-stretch"}/>
-        },
-        'header-one-right':{
-            element:'h1',
-            wrapper:<div className={"grid justify-items-stretch"}/>
-        },'header-two-center':{
-            element:'h2',
-            wrapper:<div className={"grid justify-items-stretch"}/>
-        },
-        'header-two-left':{
-            element:'h2',
-            wrapper:<div className={"grid justify-items-stretch"}/>
-        },
-        'header-two-right':{
-            element:'h2',
-            wrapper:<div className={"grid justify-items-stretch"}/>
-        }
-    }
 
 
-    const blockRenderMap = Map(stylesBlock);
+    const blockRenderMap = Map(styleBlock);
 
 
     function myBlockStyleFn(contentBlock) {
@@ -134,18 +86,24 @@ export default function MyEditor() {
                 return 'text-lg';
             case 'unstyled-right':
                 return 'text-lg';
-            case 'header-one-right':
+            case 'h1-right':
                 return 'text-2xl justify-self-end';
-            case 'header-one-left':
+            case 'h1-left':
                 return 'text-2xl justify-self-start';
-            case 'header-one-center':
+            case 'h1-center':
                 return 'text-2xl justify-self-center';
-            case 'header-two-right':
-                return 'text-2xl justify-self-end';
-            case 'header-two-left':
-                return 'text-2xl justify-self-start';
-            case 'header-two-center':
-                return 'text-2xl justify-self-center';
+            case 'h2-right':
+                return 'text-xl justify-self-end';
+            case 'h2-left':
+                return 'text-xl justify-self-start';
+            case 'h2-center':
+                return 'text-xl justify-self-center';
+           case 'header-three-right':
+               return 'justify-self-end';
+           case 'header-three-left':
+               return 'justify-self-start';
+           case 'header-three-center':
+               return 'justify-self-center';
             default:
                 return 'text-lg'
         }
@@ -199,14 +157,14 @@ export default function MyEditor() {
                         className={`mr-2 hover:bg-gray-200 p-1 border ${blockTypeStyle === 'justify-left' ? active : ''}`}>
                         <button type="button" value={"left"} className="flex"
                                 onClick={(e) => {
-                                    if(block.getType().search(/header-one/g) === 0){
-                                        toggleBlockType('header-one-left');
-                                    }else if(block.getType().search(/header-two/g) === 0){
-                                        toggleBlockType('header-two-left');
+                                    if(getBlock === 'h1'){
+                                        toggleBlockType('h1-left');
+                                        setStyleBlock({'h1-left':{element:getBlock,wrapper:<div className={"grid place-content-start"}/>}})
+                                    }else if(getBlock === 'h2'){
+                                        toggleBlockType('h2-left');
+                                        setStyleBlock({'h2-left':{element:getBlock,wrapper:<div className={"grid place-content-start"}/>}})
                                     }
 
-                                  //  setStyleBlock({'left':{element:getBlock,wrapper:<div className={"grid place-content-left"}/> }})
-                                    //updateStyleElement(block,getBlock,'text-align:left;')
                                 }} >
                             <TextLeft/>
                         </button>
@@ -215,13 +173,14 @@ export default function MyEditor() {
                         className={`mr-2 hover:bg-gray-200 p-1 border ${blockTypeStyle === 'justify-center' ? active : ''}`}>
                         <button type="button" className="flex"
                                 onClick={(e) => {
-                                    console.log(block.getType().search(/header/g))
-                                    if(block.getType().search(/header-one/g) === 0) {
-                                        toggleBlockType('header-one-center');
-                                    }else if(block.getType().search(/header-two/g) === 0){
-                                        toggleBlockType('header-two-center');
+                                    if(getBlock === 'h1'){
+                                        toggleBlockType('h1-center');
+                                        setStyleBlock({'h1-center':{element:getBlock,wrapper:<div className={"grid place-content-center"}/>}})
+                                    }else if(getBlock === 'h2'){
+                                        toggleBlockType('h2-center');
+                                        setStyleBlock({'h2-center':{element:getBlock,wrapper:<div className={"grid place-content-center"}/>}})
                                     }
-                                   // setStyleBlock({'center':{element:getBlock,wrapper:<div className={"grid place-content-center"}/>,key:block.getKey() }})
+
                                    // updateStyleElement(block,getBlock,'text-align:center;')
                                 }}>
                             <TextCenter/>
@@ -231,8 +190,12 @@ export default function MyEditor() {
                         className={`mr-2 hover:bg-gray-200 p-1 border ${blockTypeStyle === 'justify-end' ? active : ''}`}>
                         <button type="button" className="flex"
                                 onClick={(e) => {
-                                    if(block.getType().search(/header/g) === 0) {
-                                        toggleBlockType('header-one-right');
+                                    if(getBlock === 'h1' || getBlock === 'h2'){
+                                        toggleBlockType('h1-right');
+                                        setStyleBlock({'h1-right':{element:getBlock,wrapper:<div className={"grid place-content-end"}/>}})
+                                    }else if(getBlock === 'h2'){
+                                        toggleBlockType('h2-right');
+                                        setStyleBlock({'h2-right':{element:getBlock,wrapper:<div className={"grid place-content-end"}/>}})
                                     }
                                 }}>
                             <TextRight/>

@@ -78,3 +78,70 @@ export function arrayCount(n) {
     }
     return arr;
 }
+
+export let stylesBlock = {
+    'header-one': {
+        element: 'h1'
+    }, 'header-two': {
+        element: 'h2'
+    }, 'header-three': {
+        element: 'h3'
+    }, 'header-four': {
+        element: 'h4'
+    }, 'header-five': {
+        element: 'h5'
+    }, 'header-six': {
+        element: 'h6'
+    }, 'blockquote': {
+        element: 'blockquote'
+    }, 'unordered-list-item': {
+        element: 'li',
+        wrapper: <ul></ul>
+    }, 'ordered-list-item': {
+        element: 'li',
+        wrapper: <ol></ol>
+    }, 'Code Block': {
+        element: 'code-block'
+    }, 'paragraph': {
+        element: 'div',
+        aliasedElements: ['p', 'span'],
+    },
+    'unstyled': {
+        element: 'div',
+        aliasedElements: ['span', 'p'],
+    },
+    'header-one-center':{
+        element:'h1',
+        wrapper:<div className={"grid justify-items-stretch"}/>
+    },
+    'header-one-left':{
+        element:'h1',
+        wrapper:<div className={"grid justify-items-stretch"}/>
+    },
+    'header-one-right':{
+        element:'h1',
+        wrapper:<div className={"grid justify-items-stretch"}/>
+    },'header-two-center':{
+        element:'h2',
+        wrapper:<div className={"grid justify-items-stretch"}/>
+    },
+    'header-two-left':{
+        element:'h2',
+        wrapper:<div className={"grid justify-items-stretch"}/>
+    },
+    'header-two-right':{
+        element:'h2',
+        wrapper:<div className={"grid justify-items-stretch"}/>
+    },'header-three-center':{
+        element:'h3',
+        wrapper:<div className={"grid justify-items-stretch"}/>
+    },
+    'header-three-left':{
+        element:'h3',
+        wrapper:<div className={"grid justify-items-stretch"}/>
+    },
+    'header-three-right':{
+        element:'h3',
+        wrapper:<div className={"grid justify-items-stretch"}/>
+    }
+}

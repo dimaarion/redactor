@@ -9,10 +9,14 @@ const [colspan, setColspan] = useState('1');
         const blockKey = editorState
             .getCurrentContent()
             .getBlockForKey(selection.getStartKey()).getKey();
+        const blockType = editorState
+            .getCurrentContent()
+            .getBlockForKey(selection.getStartKey()).getKey();
         let table = document.querySelectorAll('.table')
         table.forEach((el)=>{
             if(el.getAttribute('data-offset-key') === blockKey + '-0-0'){
-                el.className = `border table border-solid border-gray-600 p-2 col-span-${n}`;
+                console.log(el.className.match(/col-span/g))
+                el.classList.toggle(`col-span-${n}`);
               //  el.parentElement.innerHTML = "<div class='grid justify-items-stretch'><div class='justify-self-center'>"+ el.parentElement.innerHTML + "</div></div>";
             }
         })

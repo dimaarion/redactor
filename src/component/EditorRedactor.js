@@ -1,6 +1,15 @@
 import React, {useEffect} from 'react';
 import ReactDOM from 'react-dom';
-import Draft, {Editor, EditorState, RichUtils, Modifier, getDefaultKeyBinding} from 'draft-js';
+import Draft, {
+    Editor,
+    EditorState,
+    RichUtils,
+    Modifier,
+    getDefaultKeyBinding,
+    CompositeDecorator,
+    convertFromRaw,
+    convertToRaw
+} from 'draft-js';
 import '../css/example.css';
 import '../css/draft.css';
 import '../css/rich-editor.css';
@@ -8,19 +17,138 @@ import TextLeft from "./TextLeft";
 import {Map} from "immutable";
 import TextCenter from "./TextCenter";
 import TextRight from "./TextRight";
-import {updateStyleElement,blockRenderMap, getBlockStyle, BLOCK_ALIGN, BLOCK_TABLE} from "../action";
+import {updateStyleElement, blockRenderMap, getBlockStyle, BLOCK_ALIGN, BLOCK_TABLE, rawContent} from "../action";
+import AddLink from "./AddLink";
+import RemoveLink from "./RemoveLink";
+import Table from "./Table";
+import TableParams from "./TableParams";
 
 const {useState, useRef, useCallback} = React;
+
+
 export default function EditorRedactor() {
     const [editorState, setEditorState] = React.useState(
         () => EditorState.createEmpty(),
     );
+    const [urlValue, setUrlValue] = useState('');
     const [alignText, setAlignText] = useState('text-left');
     const [tag, setTag] = useState('div')
     const editor = useRef(null);
+    const [showURLInput, setShowURLInput] = useState(false);
+    const [showTable, setShowTable] = useState(false);
+    const [countTable, setCountTable] = useState('1');
     const focus = () => {
         if (editor.current) editor.current.focus();
     };
+
+    const onURLChange = (e) => setUrlValue(e.target.value);
+
+    const logState = () => {
+        const content = editorState.getCurrentContent();
+    };
+
+    function _promptForLink(e) {
+        e.preventDefault();
+        const selection = editorState.getSelection();
+        if (!selection.isCollapsed()) {
+            const contentState = editorState.getCurrentContent();
+            const startKey = editorState.getSelection().getStartKey();
+            const startOffset = editorState.getSelection().getStartOffset();
+            const blockWithLinkAtBeginning = contentState.getBlockForKey(startKey);
+            const linkKey = blockWithLinkAtBeginning.getEntityAt(startOffset);
+
+            let url = '';
+            if (linkKey) {
+                const linkInstance = contentState.getEntity(linkKey);
+                url = linkInstance.getData().url;
+            }
+
+            setUrlValue(url)
+            setShowURLInput(showURLInput ? false : true);
+
+        }
+    }
+
+
+    function _confirmLink(e) {
+        e.preventDefault();
+        const contentState = editorState.getCurrentContent();
+        const contentStateWithEntity = contentState.createEntity(
+            'LINK',
+            'MUTABLE',
+            {url: urlValue}
+        );
+        const entityKey = contentStateWithEntity.getLastCreatedEntityKey();
+        const newEditorState = EditorState.set(editorState, {currentContent: contentStateWithEntity});
+        setEditorState(RichUtils.toggleLink(
+            newEditorState,
+            newEditorState.getSelection(),
+            entityKey
+        ))
+        setUrlValue('')
+        setShowURLInput(false)
+
+    }
+
+    function _removeLink(e) {
+        e.preventDefault();
+        const selection = editorState.getSelection();
+        if (!selection.isCollapsed()) {
+            setEditorState(RichUtils.toggleLink(editorState, selection, null));
+        }
+    }
+
+    function _onLinkInputKeyDown(e) {
+        if (e.which === 13) {
+            _confirmLink(e);
+        }
+    }
+
+    const TokenSpan = (props) => {
+        const style = getDecoratedStyle(
+            props.contentState.getEntity(props.entityKey).getMutability()
+        );
+        return (
+            <span data-offset-key={props.offsetkey} style={style}>
+            {props.children}
+          </span>
+        );
+    };
+
+    const Link = (props) => {
+        const {url} = props.contentState.getEntity(props.entityKey).getData();
+        return (
+            <a href={url} className={"text-blue-500"}>
+                {props.children}
+            </a>
+        );
+    };
+
+
+    const decorator = new CompositeDecorator([
+        {
+            strategy: getEntityStrategy('IMMUTABLE'),
+            component: TokenSpan,
+        },
+        {
+            strategy: getEntityStrategy('MUTABLE'),
+            component: Link,
+        },
+        {
+            strategy: getEntityStrategy('SEGMENTED'),
+            component: TokenSpan,
+        },
+        {
+            strategy: findLinkEntities,
+            component: Link,
+        },
+    ]);
+    const blocks = convertFromRaw(rawContent);
+    useEffect(() => {
+        setEditorState(EditorState.createWithContent(blocks, decorator))
+
+    }, [])
+
     const toggleColor = (toggledColor) => _toggleColor(toggledColor);
     const selection = editorState.getSelection();
     const blockType = editorState
@@ -28,18 +156,58 @@ export default function EditorRedactor() {
         .getBlockForKey(selection.getStartKey())
         .getType();
 
+    function getEntityStrategy(mutability) {
+        return function (contentBlock, callback, contentState) {
+            contentBlock.findEntityRanges(
+                (character) => {
+                    const entityKey = character.getEntity();
+                    if (entityKey === null) {
+                        return false;
+                    }
+                    return contentState.getEntity(entityKey).getMutability() === mutability;
+                },
+                callback
+            );
+        };
+    }
+
+    function findLinkEntities(contentBlock, callback, contentState) {
+        contentBlock.findEntityRanges(
+            (character) => {
+                const entityKey = character.getEntity();
+                return (
+                    entityKey !== null &&
+                    contentState.getEntity(entityKey).getType() === 'LINK'
+                );
+            },
+            callback
+        );
+    }
 
 
-    let BL = BLOCK_TYPES.concat(BLOCK_ALIGN,BLOCK_TABLE)
+    function getDecoratedStyle(mutability) {
+        switch (mutability) {
+            case 'IMMUTABLE':
+                return styles.immutable;
+            case 'MUTABLE':
+                return styles.mutable;
+            case 'SEGMENTED':
+                return styles.segmented;
+            default:
+                return null;
+        }
+    }
+
+
+    let BL = BLOCK_TYPES.concat(BLOCK_ALIGN, BLOCK_TABLE)
     useEffect(() => {
         BL.forEach((el) => {
             if (blockType === el.style) {
                 setTag(el.label.toLowerCase())
             }
-
         })
-    }, [editorState])
 
+    }, [editorState])
 
 
     function _toggleColor(toggledColor) {
@@ -122,9 +290,31 @@ export default function EditorRedactor() {
         }
     }
 
+    let tableRender = Map({
+            'table': {
+                element: 'div',
+                wrapper: <Table col = {countTable} />
+            }
+        }
+    )
+
+    const extendedBlockRenderMap = Draft.DefaultDraftBlockRenderMap.merge(blockRenderMap,tableRender);
+
+    let urlInput = <div className={"absolute bg-gray-300 px-3 mt-2 h-[50px] flex hover:text-gray-950 z-20"}>
+        <input
+            onChange={onURLChange}
+            ref={React.createRef()}
+            type="text"
+            value={urlValue}
+            className={"border border-gray-400 rounded w-[300px] h-[20px] mt-3 mr-2"}
+            onKeyDown={_onLinkInputKeyDown}
+        />
+        <button type={"button"} className={"my-3 cursor-pointer"} onMouseDown={_confirmLink}>
+            Ok
+        </button>
+    </div>;
 
 
-    const extendedBlockRenderMap = Draft.DefaultDraftBlockRenderMap.merge(blockRenderMap);
     return (
         <div className="RichEditor-root ">
 
@@ -153,6 +343,26 @@ export default function EditorRedactor() {
                     onToggle={toggleColor}
                 />
             </div>
+            <div className={"flex"}>
+                <div className={"relative"}>
+                    <button type={"button"} className={`bg-gray-${showURLInput ? `200` : `50`} rounded cursor-pointer mr-2 hover:bg-gray-200`}
+                            onMouseDown={_promptForLink}>
+                        <AddLink/>
+                    </button>
+                    <button type={"button"} className={`bg-gray-50 cursor-pointer rounded mr-2 hover:bg-gray-200`} onMouseDown={_removeLink}>
+                        <RemoveLink/>
+                    </button>
+                    {showURLInput ? urlInput : ''}
+                </div>
+                <button type={"button"} onClick={()=>{
+                    setShowTable(true);
+                    //setEditorState(RichUtils.toggleBlockType(editorState, 'table'))
+                }} className={`bg-gray-50 cursor-pointer rounded mr-2 hover:bg-gray-200`}>
+                    table
+                </button>
+                {showTable?<TableParams countTable = {countTable} setCountTable = {setCountTable} setClose={setShowTable} editorState = {editorState} setEditorState = {setEditorState}/>:''}
+            </div>
+
 
             <div className={className} onClick={focus}>
 
@@ -169,6 +379,12 @@ export default function EditorRedactor() {
                     spellCheck={true}
                 />
             </div>
+            <input
+                onClick={logState}
+                style={styles.button}
+                type="button"
+                value="Log State"
+            />
         </div>
     );
 }
@@ -214,6 +430,7 @@ const BLOCK_TYPES = [
     {label: 'OL', style: 'ordered-list-item'},
     {label: 'Code Block', style: 'code-block'},
     {label: 'DIV', style: 'unstyled'},
+
 ];
 
 function BlockStyleControls({editorState, onToggle, setAlignText, tag}) {
@@ -238,29 +455,29 @@ function BlockStyleControls({editorState, onToggle, setAlignText, tag}) {
                     style={type.style}
                 />
             ))}
-            <button type={"button"} onMouseDown={e => {
+            <button type={"button"} className={"bg-gray-50 cursor-pointer rounded mr-2 hover:bg-gray-200"} onMouseDown={e => {
                 e.preventDefault();
                 onToggle('left-' + tag);
                 setAlignText("justify-self-start")
-                updateStyleElement(block,'span','text-align:left;')
+                updateStyleElement(block, 'span', 'text-align:left;')
             }}
             >
                 <TextLeft/>
             </button>
-            <button type={"button"} onMouseDown={e => {
+            <button type={"button"} className={"bg-gray-50 cursor-pointer rounded mr-2 hover:bg-gray-200"} onMouseDown={e => {
                 e.preventDefault();
                 onToggle('center-' + tag);
                 setAlignText("justify-self-center")
-                updateStyleElement(block,'span','text-align:center;')
+                updateStyleElement(block, 'span', 'text-align:center;')
             }}
             >
                 <TextCenter/>
             </button>
-            <button type={"button"} onMouseDown={e => {
+            <button type={"button"} className={"bg-gray-50 cursor-pointer rounded mr-2 hover:bg-gray-200"} onMouseDown={e => {
                 e.preventDefault();
                 onToggle('right-' + tag);
                 setAlignText("justify-self-end");
-                updateStyleElement(block,'span','text-align:right;')
+                updateStyleElement(block, 'span', 'text-align:right;')
             }}
             >
                 <TextRight/>
@@ -396,6 +613,23 @@ const styles = {
         color: '#999',
         cursor: 'pointer',
         marginRight: 16,
+        padding: '2px 0',
+    },
+    button: {
+        marginTop: 10,
+        textAlign: 'center',
+    },
+    immutable: {
+        backgroundColor: 'rgba(0, 0, 0, 0.2)',
+        padding: '2px 0',
+    },
+    mutable: {
+        backgroundColor: 'rgba(204, 204, 255, 1.0)',
+        padding: '2px 0',
+    },
+    segmented: {
+        backgroundColor: 'rgba(248, 222, 126, 1.0)',
+        color: 'red',
         padding: '2px 0',
     },
 };

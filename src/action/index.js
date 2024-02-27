@@ -1,25 +1,7 @@
-import {
-    isH1,
-    isH2,
-    isH3,
-    isH4,
-    isH5,
-    isH6,
-    toggleH1,
-    toggleH2,
-    toggleH3,
-    toggleH4,
-    toggleH5,
-    toggleH6,
-    isParagraph,
-    toggleParagraph,
-    isOL,
-    isUL,
-    toggleOL,
-    toggleUL
-} from "contenido";
+
 import {Map} from "immutable";
 import React from "react";
+import Table from "../component/Table";
 
 export const INLINE_STYLES = [
     {label: 'B', style: 'BOLD'},
@@ -29,19 +11,6 @@ export const INLINE_STYLES = [
     {label: 'S', style: 'STRIKETHROUGH'},
 ];
 
-export const BLOCK_TYPES = [
-    {label: 'H1', style: toggleH1, val: isH1},
-    {label: 'H2', style: toggleH2, val: isH2},
-    {label: 'H3', style: toggleH3, val: isH3},
-    {label: 'H4', style: toggleH4, val: isH4},
-    {label: 'H5', style: toggleH5, val: isH5},
-    {label: 'H6', style: toggleH6, val: isH6},
-    {label: 'DIV', style: toggleParagraph, val: isParagraph},
-    {label: 'UL', style: toggleUL, val: isUL},
-    {label: 'OL', style: toggleOL, val: isOL},
-    {label: 'Code Block', style: 'code-block'},
-    {label: 'P', style: 'paragraph'},
-];
 
 export function createObjSize(n) {
     let o = {}
@@ -96,16 +65,16 @@ export function updateStyleElement(block, tag = false, selector, update = false)
     })
 }
 
-export function arrayCount(n) {
+export function arrayCount(n,c = 8) {
     let arr = [];
-    for (let i = 8; i < n; i++) {
+    for (let i = c; i < n; i++) {
         arr[i] = i;
     }
     return arr;
 }
 
 export const BLOCK_TABLE = [
-    {label:'table',style:'table'}
+    {label:'div',style:'table'}
 ]
 
 export const BLOCK_ALIGN = [
@@ -245,7 +214,7 @@ export const blockRenderMap = Map({
     }, 'right-div': {
         element: 'div',
         wrapper: <div className={"grid justify-items-stretch"}/>
-    },
+    }
 });
 
 export function getBlockStyle(block) {
@@ -329,7 +298,64 @@ export function getBlockStyle(block) {
             return 'text-lg ' + textCenter;
         case 'right-div':
             return 'text-lg ' + textRight;
+        case 'table':
+            return 'border table border-solid border-gray-600 p-2'
         default:
             return 'text-lg';
     }
 }
+
+
+export  const rawContent = {
+    blocks: [
+        {
+            text: (
+                'This is an "immutable" entity: Superman. Deleting any ' +
+                'characters will delete the entire entity. Adding characters ' +
+                'will remove the entity from the range.'
+            ),
+            type: 'unstyled',
+            entityRanges: [{offset: 0, length: 10, key: 'first'}],
+        },
+        {
+            text: '43tt43',
+            type: 'unstyled',
+        },
+        {
+            text: (
+                'This is a "mutable" entity: Batman. Characters may be added ' +
+                'and removed.'
+            ),
+            type: 'unstyled',
+            entityRanges: [{offset: 28, length: 6, key: 'second'}],
+        },
+        {
+            text: '',
+            type: 'unstyled',
+        },
+        {
+            text: (
+                'This is a "segmented" entity: Green Lantern. Deleting any ' +
+                'characters will delete the current "segment" from the range. ' +
+                'Adding characters will remove the entire entity from the range.'
+            ),
+            type: 'unstyled',
+            entityRanges: [{offset: 30, length: 13, key: 'third'}],
+        },
+    ],
+
+    entityMap: {
+        first: {
+            type: 'TOKEN',
+            mutability: 'IMMUTABLE',
+        },
+        second: {
+            type: 'TOKEN',
+            mutability: 'MUTABLE',
+        },
+        third: {
+            type: 'TOKEN',
+            mutability: 'SEGMENTED',
+        },
+    },
+};

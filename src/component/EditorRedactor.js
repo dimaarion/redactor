@@ -37,6 +37,10 @@ export default function EditorRedactor() {
     const [showURLInput, setShowURLInput] = useState(false);
     const [showTable, setShowTable] = useState(false);
     const [countTable, setCountTable] = useState('1');
+    const [colspanShow, setColspanShow] = useState(false);
+    const [rowspanShow, setRowspanShow] = useState(false);
+    const [table, setTable] = useState(false);
+
     const focus = () => {
         if (editor.current) editor.current.focus();
     };
@@ -115,6 +119,8 @@ export default function EditorRedactor() {
         );
     };
 
+
+
     const Link = (props) => {
         const {url} = props.contentState.getEntity(props.entityKey).getData();
         return (
@@ -145,16 +151,12 @@ export default function EditorRedactor() {
     ]);
     const blocks = convertFromRaw(rawContent);
     useEffect(() => {
-        setEditorState(EditorState.createWithContent(blocks, decorator))
+
 
     }, [])
 
     const toggleColor = (toggledColor) => _toggleColor(toggledColor);
-    const selection = editorState.getSelection();
-    const blockType = editorState
-        .getCurrentContent()
-        .getBlockForKey(selection.getStartKey())
-        .getType();
+
 
     function getEntityStrategy(mutability) {
         return function (contentBlock, callback, contentState) {
@@ -201,6 +203,11 @@ export default function EditorRedactor() {
 
     let BL = BLOCK_TYPES.concat(BLOCK_ALIGN, BLOCK_TABLE)
     useEffect(() => {
+        const selection = editorState.getSelection();
+        const blockType = editorState
+            .getCurrentContent()
+            .getBlockForKey(selection.getStartKey())
+            .getType();
         BL.forEach((el) => {
             if (blockType === el.style) {
                 setTag(el.label.toLowerCase())
@@ -298,7 +305,7 @@ export default function EditorRedactor() {
         }
     )
 
-    const extendedBlockRenderMap = Draft.DefaultDraftBlockRenderMap.merge(blockRenderMap,tableRender);
+    const extendedBlockRenderMap = Draft.DefaultDraftBlockRenderMap.merge(blockRenderMap);
 
     let urlInput = <div className={"absolute bg-gray-300 px-3 mt-2 h-[50px] flex hover:text-gray-950 z-20"}>
         <input
@@ -355,12 +362,42 @@ export default function EditorRedactor() {
                     {showURLInput ? urlInput : ''}
                 </div>
                 <button type={"button"} onClick={()=>{
+                    const selection = editorState.getSelection();
+
+                    const blockKey = editorState
+                        .getCurrentContent()
+                        .getBlockForKey(selection.getStartKey()).getKey();
+                    let table = document.querySelectorAll('.table')
+                    table.forEach((el) => {
+                        if (el.getAttribute('data-offset-key') === blockKey + '-0-0') {
+                            if (el.className.match(/col-span/g)) {
+                                setColspanShow(true)
+                            } else {
+                                setColspanShow(false)
+                            }
+                            if (el.className.match(/col-span/g)) {
+                                setRowspanShow(true)
+                            } else {
+                                setRowspanShow(false)
+                            }
+
+//if(el.parentElement.className.match(/[0-9]/g)){
+  //  setTable(true);
+ //   setCountTable(el.parentElement.className.match(/[0-9]/g)[0])
+//}else {
+  //  setTable(false);
+//}
+
+
+                        }
+                    })
                     setShowTable(true);
                     //setEditorState(RichUtils.toggleBlockType(editorState, 'table'))
-                }} className={`bg-gray-50 cursor-pointer rounded mr-2 hover:bg-gray-200`}>
+                    setEditorState(EditorState.createWithContent(blocks, decorator))
+               }} className={`bg-gray-50 cursor-pointer rounded mr-2 hover:bg-gray-200`}>
                     table
                 </button>
-                {showTable?<TableParams countTable = {countTable} setCountTable = {setCountTable} setClose={setShowTable} editorState = {editorState} setEditorState = {setEditorState}/>:''}
+                {showTable?<TableParams countTable = {countTable} table = {table} rowSpanShow = {rowspanShow} setRowspanShow = {setRowspanShow} colspanShow = {colspanShow} setColspanShow = {setColspanShow} setCountTable = {setCountTable} setClose={setShowTable} editorState = {editorState} setEditorState = {setEditorState}/>:''}
             </div>
 
 

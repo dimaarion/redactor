@@ -8,6 +8,10 @@ import EditButton from "./EditButton"
 export default function TextAreaRedactor(){
     const text = useRef('');
 const [editor, setEditor] = useState({html:text.current});
+    const focus = () => {
+
+    };
+
 
  let  sanitizeConf = {
      allowedTags: ["b", "i", "em", "strong", "a", "p", "h1"],
@@ -90,9 +94,9 @@ const [editor, setEditor] = useState({html:text.current});
     },[editor])
 
     return<>
-        <EditButton selectedtext = {text.current} cmd="italic" name="i"/>
+        <EditButton selectedtext = {text.current} sanitizeHtml = {sanitizeHtml} cmd="italic" name="i"/>
         <EditButton cmd="bold" name="b"/>
         <EditButton cmd="formatBlock" arg="h1" name="h1" />
-        <ContentEditable className={"content-redactor border border-2 border-solid mt-3 border-gray-300"} html={text.current} onBlur={sanitize} onChange={handleChange} />
+        <ContentEditable onFocus={focus} className={"content-redactor border border-2 border-solid mt-3 border-gray-300"} html={text.current} onBlur={sanitize} onChange={handleChange} />
     </>
 }

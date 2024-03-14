@@ -35,8 +35,14 @@ export default function EditButton(props) {
             key={props.cmd}
             onMouseDown={evt => {
                 evt.preventDefault(); // Avoids loosing focus from the editable area
+            let clear =  props.sanitizeHtml(props.selectedtext,{ transformTags: {
+                      'div': 'h1',
+                  }})
+
+                console.log(clear)
+              //  document.getSelection().focusNode.parentElement.classList.toggle('bold')
               //  boldCommand()
-              //  selectedStyles(props, "b")
+               // selectedStyles(props, "b")
                // document.execCommand(props.cmd, false, props.arg); // Send the command to the browser
             }}
         >

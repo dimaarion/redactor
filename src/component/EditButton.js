@@ -1,5 +1,10 @@
 export default function EditButton(props) {
-
+    function boldCommand() {
+        const strongElement = document.createElement("strong");
+        const userSelection = window.getSelection();
+        const selectedTextRange = userSelection.getRangeAt(0);
+        selectedTextRange.surroundContents(strongElement);
+    }
 
     function selectedStyles(props, tag = "span", href = false, styles = false) {
         function replaceSelected() {
@@ -30,7 +35,8 @@ export default function EditButton(props) {
             key={props.cmd}
             onMouseDown={evt => {
                 evt.preventDefault(); // Avoids loosing focus from the editable area
-                selectedStyles(props, "b")
+              //  boldCommand()
+              //  selectedStyles(props, "b")
                // document.execCommand(props.cmd, false, props.arg); // Send the command to the browser
             }}
         >

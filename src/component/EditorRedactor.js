@@ -8,8 +8,11 @@ import Draft, {
     getDefaultKeyBinding,
     CompositeDecorator,
     convertFromRaw,
-    convertToRaw
+    convertToRaw,
+    convertFromHTML
 } from 'draft-js';
+
+
 import '../css/example.css';
 import '../css/draft.css';
 import '../css/rich-editor.css';
@@ -17,11 +20,22 @@ import TextLeft from "./TextLeft";
 import {Map} from "immutable";
 import TextCenter from "./TextCenter";
 import TextRight from "./TextRight";
-import {updateStyleElement, blockRenderMap, getBlockStyle, BLOCK_ALIGN, BLOCK_TABLE, rawContent} from "../action";
+import {
+    updateStyleElement,
+    blockRenderMap,
+    getBlockStyle,
+    BLOCK_ALIGN,
+    BLOCK_TABLE,
+    BLOCK_TYPES,
+    rawContent
+} from "../action";
 import AddLink from "./AddLink";
 import RemoveLink from "./RemoveLink";
 import Table from "./Table";
 import TableParams from "./TableParams";
+import ContentState from "draft-js/lib/ContentState";
+import TableUtils from "draft-js-table"
+
 
 const {useState, useRef, useCallback} = React;
 
@@ -120,7 +134,6 @@ export default function EditorRedactor() {
     };
 
 
-
     const Link = (props) => {
         const {url} = props.contentState.getEntity(props.entityKey).getData();
         return (
@@ -131,25 +144,47 @@ export default function EditorRedactor() {
     };
 
 
+    const Image = (props) => {
+        const {
+            height,
+            src,
+            width,
+        } = props.contentState.getEntity(props.entityKey).getData();
+
+        return (
+            <img src={src} height={height} width={width}/>
+        );
+    };
+
+    const Tables = (props) => {
+        const {
+            height,
+            src,
+            width,
+        } = props.contentState.getEntity(props.entityKey).getData();
+
+        return (
+            <table height={height} width={width}>
+                <tbody>
+                <tr>
+                    <td>{props.children}</td>
+                </tr>
+                </tbody>
+            </table>
+        );
+    }
+
     const decorator = new CompositeDecorator([
-        {
-            strategy: getEntityStrategy('IMMUTABLE'),
-            component: TokenSpan,
-        },
-        {
-            strategy: getEntityStrategy('MUTABLE'),
-            component: Link,
-        },
-        {
-            strategy: getEntityStrategy('SEGMENTED'),
-            component: TokenSpan,
-        },
         {
             strategy: findLinkEntities,
             component: Link,
         },
+        {
+            strategy: findImageEntities,
+            component: Image,
+        },
     ]);
-    const blocks = convertFromRaw(rawContent);
+    // const blocks = convertFromRaw(rawContent);
     useEffect(() => {
 
 
@@ -186,6 +221,32 @@ export default function EditorRedactor() {
         );
     }
 
+    function findImageEntities(contentBlock, callback, contentState) {
+        contentBlock.findEntityRanges(
+            (character) => {
+                const entityKey = character.getEntity();
+                return (
+                    entityKey !== null &&
+                    contentState.getEntity(entityKey).getType() === 'IMAGE'
+                );
+            },
+            callback
+        );
+    }
+
+    function findTableEntities(contentBlock, callback, contentState) {
+        contentBlock.findEntityRanges(
+            (character) => {
+                const entityKey = character.getEntity();
+                return (
+                    entityKey !== null &&
+                    contentState.getEntity(entityKey).getType() === 'table'
+                );
+            },
+            callback
+        );
+    }
+
 
     function getDecoratedStyle(mutability) {
         switch (mutability) {
@@ -215,6 +276,23 @@ export default function EditorRedactor() {
         })
 
     }, [editorState])
+
+    const sampleMarkup =
+        '<b>Bold text</b>, <i>Italic text</i><br/ ><br />' +
+        '<a href="http://www.facebook.com">Example link</a><br /><br/ >' +
+        '<img src="https://avatars.mds.yandex.net/i?id=60cd5b9bb5fec11c0cde31f8d8712f1bc4cded5e-10730710-images-thumbs&n=13" height="112" width="200" />';
+
+    const blocksFromHTML = convertFromHTML(sampleMarkup);
+
+    const state = ContentState.createFromBlockArray(
+        blocksFromHTML.contentBlocks,
+        blocksFromHTML.entityMap,
+    );
+
+
+    useEffect(() => {
+        setEditorState(EditorState.createWithContent(state, decorator))
+    }, [])
 
 
     function _toggleColor(toggledColor) {
@@ -300,12 +378,14 @@ export default function EditorRedactor() {
     let tableRender = Map({
             'table': {
                 element: 'div',
-                wrapper: <Table col = {countTable} />
+                wrapper: <Table col={5}/>
             }
         }
     )
 
-    const extendedBlockRenderMap = Draft.DefaultDraftBlockRenderMap.merge(blockRenderMap);
+
+    const extendedBlockRenderMap = Draft.DefaultDraftBlockRenderMap.merge(blockRenderMap.concat(tableRender));
+
 
     let urlInput = <div className={"absolute bg-gray-300 px-3 mt-2 h-[50px] flex hover:text-gray-950 z-20"}>
         <input
@@ -349,55 +429,65 @@ export default function EditorRedactor() {
                     editorState={editorState}
                     onToggle={toggleColor}
                 />
-            </div>
-            <div className={"flex"}>
-                <div className={"relative"}>
-                    <button type={"button"} className={`bg-gray-${showURLInput ? `200` : `50`} rounded cursor-pointer mr-2 hover:bg-gray-200`}
-                            onMouseDown={_promptForLink}>
-                        <AddLink/>
+                <div className={"flex"}>
+                    <div className={"relative"}>
+                        <button type={"button"}
+                                className={`bg-gray-${showURLInput ? `200` : `50`} rounded cursor-pointer mr-2 hover:bg-gray-200`}
+                                onMouseDown={_promptForLink}>
+                            <AddLink/>
+                        </button>
+                        <button type={"button"} className={`bg-gray-50 cursor-pointer rounded mr-2 hover:bg-gray-200`}
+                                onMouseDown={_removeLink}>
+                            <RemoveLink/>
+                        </button>
+                        {showURLInput ? urlInput : ''}
+                    </div>
+                    <button type={"button"} onClick={() => {
+                        // TableUtils.insertTable(editorState,10,10)
+                        setEditorState(RichUtils.toggleBlockType(editorState, 'table'));
+                        console.log('test')
+                        /*
+                        const selection = editorState.getSelection();
+
+                        const blockKey = editorState
+                            .getCurrentContent()
+                            .getBlockForKey(selection.getStartKey()).getKey();
+                        let table = document.querySelectorAll('.table')
+                        table.forEach((el) => {
+                            if (el.getAttribute('data-offset-key') === blockKey + '-0-0') {
+                                if (el.className.match(/col-span/g)) {
+                                    setColspanShow(true)
+                                } else {
+                                    setColspanShow(false)
+                                }
+                                if (el.className.match(/col-span/g)) {
+                                    setRowspanShow(true)
+                                } else {
+                                    setRowspanShow(false)
+                                }
+
+    //if(el.parentElement.className.match(/[0-9]/g)){
+      //  setTable(true);
+     //   setCountTable(el.parentElement.className.match(/[0-9]/g)[0])
+    //}else {
+      //  setTable(false);
+    //}
+
+
+                            }
+                        })
+                        setShowTable(true);*/
+                        //setEditorState(RichUtils.toggleBlockType(editorState, 'table'))
+                        // setEditorState(EditorState.createWithContent(blocks, decorator))
+                    }} className={`bg-gray-50 cursor-pointer rounded mr-2 hover:bg-gray-200`}>
+                        table
                     </button>
-                    <button type={"button"} className={`bg-gray-50 cursor-pointer rounded mr-2 hover:bg-gray-200`} onMouseDown={_removeLink}>
-                        <RemoveLink/>
-                    </button>
-                    {showURLInput ? urlInput : ''}
+                    {showTable ? <TableParams countTable={countTable} table={table} rowSpanShow={rowspanShow}
+                                              setRowspanShow={setRowspanShow} colspanShow={colspanShow}
+                                              setColspanShow={setColspanShow} setCountTable={setCountTable}
+                                              setClose={setShowTable} editorState={editorState}
+                                              setEditorState={setEditorState}/> : ''}
                 </div>
-                <button type={"button"} onClick={()=>{
-                    const selection = editorState.getSelection();
-
-                    const blockKey = editorState
-                        .getCurrentContent()
-                        .getBlockForKey(selection.getStartKey()).getKey();
-                    let table = document.querySelectorAll('.table')
-                    table.forEach((el) => {
-                        if (el.getAttribute('data-offset-key') === blockKey + '-0-0') {
-                            if (el.className.match(/col-span/g)) {
-                                setColspanShow(true)
-                            } else {
-                                setColspanShow(false)
-                            }
-                            if (el.className.match(/col-span/g)) {
-                                setRowspanShow(true)
-                            } else {
-                                setRowspanShow(false)
-                            }
-
-//if(el.parentElement.className.match(/[0-9]/g)){
-  //  setTable(true);
- //   setCountTable(el.parentElement.className.match(/[0-9]/g)[0])
-//}else {
-  //  setTable(false);
-//}
-
-
-                        }
-                    })
-                    setShowTable(true);
-                    //setEditorState(RichUtils.toggleBlockType(editorState, 'table'))
-                    setEditorState(EditorState.createWithContent(blocks, decorator))
-               }} className={`bg-gray-50 cursor-pointer rounded mr-2 hover:bg-gray-200`}>
-                    table
-                </button>
-                {showTable?<TableParams countTable = {countTable} table = {table} rowSpanShow = {rowspanShow} setRowspanShow = {setRowspanShow} colspanShow = {colspanShow} setColspanShow = {setColspanShow} setCountTable = {setCountTable} setClose={setShowTable} editorState = {editorState} setEditorState = {setEditorState}/>:''}
             </div>
 
 
@@ -426,7 +516,7 @@ export default function EditorRedactor() {
     );
 }
 
-// Custom overrides for "code" style.
+
 const styleMap = {
     CODE: {
         backgroundColor: 'rgba(0, 0, 0, 0.05)',
@@ -455,20 +545,6 @@ function StyleButton({onToggle, active, label, style}) {
     );
 }
 
-const BLOCK_TYPES = [
-    {label: 'H1', style: 'header-one'},
-    {label: 'H2', style: 'header-two'},
-    {label: 'H3', style: 'header-three'},
-    {label: 'H4', style: 'header-four'},
-    {label: 'H5', style: 'header-five'},
-    {label: 'H6', style: 'header-six'},
-    {label: 'Blockquote', style: 'blockquote'},
-    {label: 'UL', style: 'unordered-list-item'},
-    {label: 'OL', style: 'ordered-list-item'},
-    {label: 'Code Block', style: 'code-block'},
-    {label: 'DIV', style: 'unstyled'},
-
-];
 
 function BlockStyleControls({editorState, onToggle, setAlignText, tag}) {
     const selection = editorState.getSelection();
@@ -492,30 +568,33 @@ function BlockStyleControls({editorState, onToggle, setAlignText, tag}) {
                     style={type.style}
                 />
             ))}
-            <button type={"button"} className={"bg-gray-50 cursor-pointer rounded mr-2 hover:bg-gray-200"} onMouseDown={e => {
-                e.preventDefault();
-                onToggle('left-' + tag);
-                setAlignText("justify-self-start")
-                updateStyleElement(block, 'span', 'text-align:left;')
-            }}
+            <button type={"button"} className={"bg-gray-50 cursor-pointer rounded mr-2 hover:bg-gray-200"}
+                    onMouseDown={e => {
+                        e.preventDefault();
+                        onToggle('left-' + tag);
+                        setAlignText("justify-self-start")
+                        updateStyleElement(block, 'span', 'text-align:left;')
+                    }}
             >
                 <TextLeft/>
             </button>
-            <button type={"button"} className={"bg-gray-50 cursor-pointer rounded mr-2 hover:bg-gray-200"} onMouseDown={e => {
-                e.preventDefault();
-                onToggle('center-' + tag);
-                setAlignText("justify-self-center")
-                updateStyleElement(block, 'span', 'text-align:center;')
-            }}
+            <button type={"button"} className={"bg-gray-50 cursor-pointer rounded mr-2 hover:bg-gray-200"}
+                    onMouseDown={e => {
+                        e.preventDefault();
+                        onToggle('center-' + tag);
+                        setAlignText("justify-self-center")
+                        updateStyleElement(block, 'span', 'text-align:center;')
+                    }}
             >
                 <TextCenter/>
             </button>
-            <button type={"button"} className={"bg-gray-50 cursor-pointer rounded mr-2 hover:bg-gray-200"} onMouseDown={e => {
-                e.preventDefault();
-                onToggle('right-' + tag);
-                setAlignText("justify-self-end");
-                updateStyleElement(block, 'span', 'text-align:right;')
-            }}
+            <button type={"button"} className={"bg-gray-50 cursor-pointer rounded mr-2 hover:bg-gray-200"}
+                    onMouseDown={e => {
+                        e.preventDefault();
+                        onToggle('right-' + tag);
+                        setAlignText("justify-self-end");
+                        updateStyleElement(block, 'span', 'text-align:right;')
+                    }}
             >
                 <TextRight/>
             </button>

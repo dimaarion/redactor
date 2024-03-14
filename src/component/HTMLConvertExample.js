@@ -9,55 +9,9 @@ import {
 import React, {useEffect, useRef} from "react";
 
 
-export default function HTMLConvertExample() {
-
-    const [editorState, setEditorState] = React.useState(
-        () => EditorState.createEmpty(),
-    );
-
-    const editor = useRef(null);
-
-    const focus = () => {
-        if (editor.current) editor.current.focus();
-    };
-
-
-    const logState = () => {
-        const content = editorState.getCurrentContent();
-        console.log(convertToRaw(content));
-    };
-
-
-    const Link = (props) => {
-        const {url} = props.contentState.getEntity(props.entityKey).getData();
-        return (
-            <a href={url} style={styles.link}>
-                {props.children}
-            </a>
-        );
-    };
-
-
-    function findImageEntities(contentBlock, callback, contentState) {
-        contentBlock.findEntityRanges(
-            (character) => {
-                const entityKey = character.getEntity();
-                return (
-                    entityKey !== null &&
-                    contentState.getEntity(entityKey).getType() === 'IMAGE'
-                );
-            },
-            callback
-        );
-    }
-
-    const Image = (props) => {
-        const {
-            height,
-            src,
-            width,
-        } = props.contentState.getEntity(props.entityKey).getData();
-
+export default class HTMLConvertExample extends React.Component {
+    constructor(props) {
+        super(props);
 
         const decorator = new CompositeDecorator([
             {
@@ -67,15 +21,17 @@ export default function HTMLConvertExample() {
             {
                 strategy: findImageEntities,
                 component: Image,
+            },{
+                strategy: findTableEntities,
+                component: Table,
             },
         ]);
-
-
 
         const sampleMarkup =
             '<b>Bold text</b>, <i>Italic text</i><br/ ><br />' +
             '<a href="http://www.facebook.com">Example link</a><br /><br/ >' +
-            '<img src="image.png" height="112" width="200" />';
+            '<img src="image.png" height="112" width="200" />' +
+        '<table><tbody><tr><td>sdv</td><td>sdv</td><td>sdv</td></tr></tbody></table>';
 
         const blocksFromHTML = convertFromHTML(sampleMarkup);
         const state = ContentState.createFromBlockArray(
@@ -83,58 +39,121 @@ export default function HTMLConvertExample() {
             blocksFromHTML.entityMap,
         );
 
+        this.state = {
+            editorState: EditorState.createWithContent(
+                state,
+                decorator,
+            ),
+        };
 
+        this.focus = () => this.refs.editor.focus();
+        this.onChange = (editorState) => this.setState({editorState});
+        this.logState = () => {
+            const content = this.state.editorState.getCurrentContent();
+            console.log(convertToRaw(content));
+        };
+    }
 
-        function findLinkEntities(contentBlock, callback, contentState) {
-            contentBlock.findEntityRanges(
-                (character) => {
-                    const entityKey = character.getEntity();
-                    return (
-                        entityKey !== null &&
-                        contentState.getEntity(entityKey).getType() === 'LINK'
-                    );
-                },
-                callback
-            );
-        }
-
-
+    render() {
         return (
-            <img src={src} height={height} width={width}/>
-        );
-    };
-
-    useEffect(() => {
-        setEditorState(EditorState.createWithContent(
-            state,
-            decorator,
-        ),)
-
-
-    }, [])
-   console.log('blo')
-
-    return <>
-        <div style={styles.root}>
-            <div style={{marginBottom: 10}}>
-                Sample HTML converted into Draft content state
-            </div>
-            <div style={styles.editor} onClick={focus}>
-                <Editor
-                    editorState={editorState}
-                    onChange={setEditorState}
-                    ref={editor.current}
+            <div style={styles.root}>
+                <div style={{marginBottom: 10}}>
+                    Sample HTML converted into Draft content state
+                </div>
+                <div style={styles.editor} onClick={this.focus}>
+                    <Editor
+                        editorState={this.state.editorState}
+                        onChange={this.onChange}
+                        ref="editor"
+                    />
+                </div>
+                <input
+                    onClick={this.logState}
+                    style={styles.button}
+                    type="button"
+                    value="Log State"
                 />
             </div>
-            <input
-                onClick={logState}
-                style={styles.button}
-                type="button"
-                value="Log State"
-            />
-        </div>
-    </>
+        );
+    }
 }
+
+function findLinkEntities(contentBlock, callback, contentState) {
+    contentBlock.findEntityRanges(
+        (character) => {
+            const entityKey = character.getEntity();
+            return (
+                entityKey !== null &&
+                contentState.getEntity(entityKey).getType() === 'LINK'
+            );
+        },
+        callback
+    );
+}
+
+const Link = (props) => {
+    const {url} = props.contentState.getEntity(props.entityKey).getData();
+    return (
+        <a href={url} style={styles.link}>
+            {props.children}
+        </a>
+    );
+};
+
+const Table = (props) => {
+   // const {url} = props.contentState.getEntity(props.entityKey).getData();
+    return (
+        <table>
+            <tbody>
+            <tr>
+                <td>
+                    {props.children}
+                </td>
+            </tr>
+            </tbody>
+
+        </table>
+    );
+};
+
+function findImageEntities(contentBlock, callback, contentState) {
+    contentBlock.findEntityRanges(
+        (character) => {
+            const entityKey = character.getEntity();
+            return (
+                entityKey !== null &&
+                contentState.getEntity(entityKey).getType() === 'IMAGE'
+            );
+        },
+        callback
+    );
+}
+
+function findTableEntities(contentBlock, callback, contentState) {
+    contentBlock.findEntityRanges(
+        (character) => {
+            const entityKey = character.getEntity();
+            console.log(contentState)
+            return (
+                entityKey !== null &&
+                contentState.getEntity(entityKey).getType() === 'TABLE'
+            );
+        },
+        callback
+    );
+}
+
+const Image = (props) => {
+    const {
+        height,
+        src,
+        width,
+    } = props.contentState.getEntity(props.entityKey).getData();
+
+    return (
+        <img src={src} height={height} width={width} />
+    );
+};
 
 const styles = {
     root: {

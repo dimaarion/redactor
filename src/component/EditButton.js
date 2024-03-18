@@ -1,10 +1,7 @@
+import {useEffect} from "react";
+
 export default function EditButton(props) {
-    function boldCommand() {
-        const strongElement = document.createElement("strong");
-        const userSelection = window.getSelection();
-        const selectedTextRange = userSelection.getRangeAt(0);
-        selectedTextRange.surroundContents(strongElement);
-    }
+
 
     function selectedStyles(props, tag = "span", href = false, styles = false) {
         function replaceSelected() {
@@ -74,7 +71,7 @@ export default function EditButton(props) {
             onMouseDown={evt => {
                 evt.preventDefault();
                 selectedStyles(props, props.name);
-                props.setIsBlock(props.name.toUpperCase())
+                props.setIsBlock('btn',evt)
             }}
         >
             {props.component?<props.component t ={"d"}/>:""}

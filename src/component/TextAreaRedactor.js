@@ -91,18 +91,30 @@ export default function TextAreaRedactor() {
         })
     }
 
-    function isBlockColor(data = 'DIV'){
-        document.querySelector(".content-redactor").addEventListener("click", (e) => {
-            document.querySelector("#nav-bar").querySelectorAll("button").forEach((el) => {
-                if (e.target.tagName === el.getAttribute("data-tag") || el.getAttribute("data-tag") === data) {
-                    el.classList.replace("bg-white", "bg-gray-300")
-                } else {
-                    el.classList.replace("bg-gray-300", "bg-white")
-                }
+    function isBlockColor(data = '',e){
+        if(data === "btn"){
+            document.querySelector(".content-redactor").querySelectorAll("*").forEach((el)=>{
+                console.log(el.tagName.toUpperCase())
+                        if(e.currentTarget.getAttribute("data-tag") === el.tagName.toUpperCase()){
+                            el.classList.replace("bg-white", "bg-gray-300")
+                        }else {
+                            el.classList.replace("bg-gray-300", "bg-white")
+                        }
+            })
+        }else {
+            document.querySelector(".content-redactor").addEventListener("click", (e) => {
+                document.querySelector("#nav-bar").querySelectorAll("button").forEach((el) => {
+                    if (e.target.tagName === el.getAttribute("data-tag")) {
+                        el.classList.replace("bg-white", "bg-gray-300")
+                    } else {
+                        el.classList.replace("bg-gray-300", "bg-white")
+                    }
+                })
 
             })
 
-        })
+        }
+
     }
 
     useEffect(() => {

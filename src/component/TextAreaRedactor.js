@@ -3,6 +3,7 @@ import React from 'react'
 import ContentEditable from 'react-contenteditable'
 import sanitizeHtml from "sanitize-html";
 import EditButton from "./EditButton"
+import {isBlockColor} from "../action";
 
 
 export default function TextAreaRedactor() {
@@ -20,19 +21,82 @@ export default function TextAreaRedactor() {
         allowedTags: ["b", "i", "em", "strong", "a", "p", "h1"],
         allowedAttributes: {a: ["href"]}
     };
+
+    const CleanWordHTML = function (str) {
+        str = str.replace(/<o:p>\s*<\/o:p>/g, "");
+        str = str.replace(/<o:p>.*?<\/o:p>/g, "&nbsp;");
+        str = str.replace(/\s*mso-[^:]+:[^;"]+;?/gi, "");
+        str = str.replace(/\s*MARGIN: 0cm 0cm 0pt\s*;/gi, "");
+        str = str.replace(/\s*MARGIN: 0cm 0cm 0pt\s*"/gi, "\"");
+        str = str.replace(/\s*TEXT-INDENT: 0cm\s*;/gi, "");
+        str = str.replace(/\s*TEXT-INDENT: 0cm\s*"/gi, "\"");
+        str = str.replace(/\s*TEXT-ALIGN: [^\s;]+;?"/gi, "\"");
+        str = str.replace(/\s*PAGE-BREAK-BEFORE: [^\s;]+;?"/gi, "\"");
+        str = str.replace(/\s*FONT-VARIANT: [^\s;]+;?"/gi, "\"");
+        str = str.replace(/\s*tab-stops:[^;"]*;?/gi, "");
+        str = str.replace(/\s*tab-stops:[^"]*/gi, "");
+        str = str.replace(/\s*face="[^"]*"/gi, "");
+        str = str.replace(/\s*face=[^ >]*/gi, "");
+        str = str.replace(/\s*FONT-FAMILY:[^;"]*;?/gi, "");
+       // str = str.replace(/<(\w[^>]*) class=([^ >]*)([^>]*)/gi, "<$1$3");
+        str = str.replace(/<(\w[^>]*) style="([^\"]*)"([^>]*)/gi, "<$1$3");
+        str = str.replace(/\s*style="\s*"/gi, '');
+        str = str.replace(/<SPAN\s*[^>]*>\s*&nbsp;\s*<\/SPAN>/gi, '&nbsp;');
+        str = str.replace(/<SPAN\s*[^>]*><\/SPAN>/gi, '');
+        str = str.replace(/<(\w[^>]*) lang=([^ |>]*)([^>]*)/gi, "<$1$3");
+        str = str.replace(/<SPAN\s*>(.*?)<\/SPAN>/gi, '$1');
+        str = str.replace(/<FONT\s*>(.*?)<\/FONT>/gi, '$1');
+        str = str.replace(/<\\?\?xml[^>]*>/gi, "");
+        str = str.replace(/<\/?\w+:[^>]*>/gi, "");
+        str = str.replace(/<H\d>\s*<\/H\d>/gi, '');
+        str = str.replace(/<H1([^>]*)>/gi, '');
+        str = str.replace(/<H2([^>]*)>/gi, '');
+        str = str.replace(/<H3([^>]*)>/gi, '');
+        str = str.replace(/<H4([^>]*)>/gi, '');
+        str = str.replace(/<H5([^>]*)>/gi, '');
+        str = str.replace(/<H6([^>]*)>/gi, '');
+        str = str.replace(/<\/H\d>/gi, '<br>'); //remove this to take out breaks where Heading tags were
+        str = str.replace(/<(U|I|STRIKE)>&nbsp;<\/\1>/g, '&nbsp;');
+        str = str.replace(/<(\b)>&nbsp;<\/\b>/g, '');
+        str = str.replace(/<([^\s>]+)[^>]*>\s*<\/\1>/g, '');
+        str = str.replace(/<([^\s>]+)[^>]*>\s*<\/\1>/g, '');
+        str = str.replace(/<([^\s>]+)[^>]*>\s*<\/\1>/g, '');
+//some RegEx code for the picky browsers
+        var re = new RegExp("(<P)([^>]*>.*?)(<\/P>)", "gi");
+        str = str.replace(re, "<div$2</div>");
+        var re2 = new RegExp("(<font|<FONT)([^*>]*>.*?)(<\/FONT>|<\/font>)", "gi");
+        str = str.replace(re2, "<div$2</div>");
+        str = str.replace(/size|SIZE = ([\d]{1})/g, '');
+        return str;
+    }
+
+    const cleanPaste = function (html) {
+        // Remove additional MS Word content
+        html = html.replace(/<(\/)*(\\?xml:|meta|link|span|font|del|ins|st1:|[ovwxp]:)((.|\s)*?)>/gi, ''); // Unwanted tags
+        html = html.replace(/(class|style|type|start)=("(.*?)"|(\w*))/gi, ''); // Unwanted sttributes
+        html = html.replace(/<style(.*?)style>/gi, '');   // Style tags
+        html = html.replace(/<script(.*?)script>/gi, ''); // Script tags
+        html = html.replace(/<!--(.*?)-->/gi, '');        // HTML comments
+
+        return html;
+    }
+
     const handleChange = evt => {
         text.current = evt.target.value
         text.current = text.current.replace(/<!--[\s\S]+?-->/gi, '');
         text.current = text.current.replace(/<(!|script[^>]*>.*?<\/script(?=[>\s])|\/?(\?xml(:\w+)?|img|meta|link|style|\w:\w+)(?=[\s\/>]))[^>]*>/gi, '');
-        text.current = text.current.replace(/<(\/?)s>/gi, "<$1strike>");
-        text.current = text.current.replace(/ /gi, ' ');
-        text.current = text.current.replace(/<span\s+style\s*=\s*"\s*mso-spacerun\s*:\s*yes\s*;?\s*"\s*>([\s\u00a0]*)<\/span>/gi, function (str, spaces) {
-            return (spaces.length > 0) ? spaces.replace(/./, " ").slice(Math.floor(spaces.length / 2)).split("").join("\u00a0") : '';
-        });
-        text.current = text.current.replace(/lang="EN-US"/g, '');
-        text.current = text.current.replace(/style="mso-ansi-language:EN-US"/g, '');
-        text.current = text.current.replace(/MsoNormal/g, 'text-lg');
-        text.current = text.current.replace(/MsoTableGrid/g, 'border-collapse border border-slate-400');
+        //  text.current = text.current.replace(/<(\/?)s>/gi, "<$1strike>");
+        //   text.current = text.current.replace(/ /gi, ' ');
+        //  text.current = text.current.replace(/<span\s+style\s*=\s*"\s*mso-spacerun\s*:\s*yes\s*;?\s*"\s*>([\s\u00a0]*)<\/span>/gi, function (str, spaces) {
+        //       return (spaces.length > 0) ? spaces.replace(/./, " ").slice(Math.floor(spaces.length / 2)).split("").join("\u00a0") : '';
+        //  });
+
+        //  text.current = text.current.replace(/lang="EN-US"/g, '');
+        //  text.current = text.current.replace(/style="mso-ansi-language:EN-US"/g, '');
+        ///  text.current = text.current.replace(/MsoNormal/g, 'text-lg');
+        //   text.current = text.current.replace(/MsoTableGrid/g, 'border-collapse border-solid border border-slate-400');
+        text.current = CleanWordHTML(text.current)
+        text.current = cleanPaste(text.current)
         setEditor(text.current)
     };
 
@@ -59,17 +123,43 @@ export default function TextAreaRedactor() {
 
     function setClass(tag, c) {
         document.querySelector(".content-redactor").querySelectorAll(tag).forEach((el) => {
-            el.className = c;
+          //  el.className = c + "dd ";
+            c.split(" ").forEach((cl)=>{
+                el.classList.add(cl)
+            })
+
         })
     }
 
     function replaceElementAll() {
+        const removeAttributes = (element) => {
+            for (let i = 0; i < element.attributes.length; i++) {
+                if (element.attributes[i].name === "times" || element.attributes[i].name === "new" || element.attributes[i].name === "roman\";mso-fareast-language:" || element.attributes[i].name === "ru\"") {
+                    element.removeAttribute(element.attributes[i].name);
+                }
+            }
+        };
+
         document.querySelector(".content-redactor").querySelectorAll("*").forEach((el) => {
             let parentBlock = Array.from(el.parentElement.classList).filter((f) => f === "content-redactor").length;
-            if (el.parentElement.tagName === el.tagName && parentBlock === 0) {
-                el.parentElement.outerHTML = '<div class="' + el.parentElement.className + '" style="' + el.parentElement.getAttribute("style") + '">' + el.parentElement.innerHTML + '</div>';
+            let st = "";
+            if (el.parentElement.hasAttribute("style")) {
+                st = 'style="' + el.parentElement.getAttribute("style") + '"';
             }
-            // el.outerHTML = '<'+ e + ' class="'+ el.className +'" style="'+ el.getAttribute("style") +'">' + el.innerHTML + '</' + e +'>';
+
+            let cl = "";
+            if (el.parentElement.hasAttribute("class")) {
+                cl = 'class="' + el.parentElement.className + '"';
+            }
+            if (el.parentElement.tagName === el.tagName && parentBlock === 0) {
+                el.parentElement.outerHTML = '<div ' + cl + ' ' + st + '>' + el.parentElement.innerHTML + '</div>';
+            }
+
+
+        })
+
+        document.querySelector(".content-redactor").querySelectorAll("div").forEach((el) => {
+            //  removeAttributes(el);
         })
     }
 
@@ -85,51 +175,25 @@ export default function TextAreaRedactor() {
         })
     }
 
-    function appendEl(tag, e) {
+    function deleteTable(tag) {
         document.querySelector(".content-redactor").querySelectorAll(tag).forEach((el) => {
-            el.outerHTML = '<' + e + ' class="' + el.className + '" style="' + el.getAttribute("style") + '">' + el.outerHTML + '</' + e + '>';
+            let div = document.createElement("div");
+
+            //el.outerHTML = '<' + e + ' class="' + el.className + '" style="' + el.getAttribute("style") + '">' + el.outerHTML + '</' + e + '>';
         })
     }
 
-    function isBlockColor(data = '',e){
-        if(data === "btn"){
-            document.querySelector(".content-redactor").querySelectorAll("*").forEach((el)=>{
-                console.log(el.tagName.toUpperCase())
-                        if(e.currentTarget.getAttribute("data-tag") === el.tagName.toUpperCase()){
-                            el.classList.replace("bg-white", "bg-gray-300")
-                        }else {
-                            el.classList.replace("bg-gray-300", "bg-white")
-                        }
-            })
-        }else {
-            document.querySelector(".content-redactor").addEventListener("click", (e) => {
-                document.querySelector("#nav-bar").querySelectorAll("button").forEach((el) => {
-                    if (e.target.tagName === el.getAttribute("data-tag")) {
-                        el.classList.replace("bg-white", "bg-gray-300")
-                    } else {
-                        el.classList.replace("bg-gray-300", "bg-white")
-                    }
-                })
-
-            })
-
-        }
-
-    }
 
     useEffect(() => {
-        appendEl("table", "div")
         removeStyle("table", "style")
         setClass("table", "table-auto w-full")
         parentAddClass("table", "overflow-auto")
         removeStyle("tr", "style")
         removeStyle("td", "style")
         removeStyle("td", "width")
-        setClass("td", "border border-slate-300 p-2")
+        setClass("td", "border border-solid border-slate-300 p-2")
         setClass("h1", "text-3xl")
         setClass("div", "text-lg")
-        replaceElement('table p', 'div')
-        replaceElement('table span', 'div')
         replaceElementAll()
 
     }, [editor])
@@ -229,34 +293,59 @@ export default function TextAreaRedactor() {
         </svg>
     }
 
+    function Ul() {
+        return <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" fill="currentColor"
+                    className="bi bi-list-ul" viewBox="0 0 16 16">
+            <path fillRule="evenodd"
+                  d="M5 11.5a.5.5 0 0 1 .5-.5h9a.5.5 0 0 1 0 1h-9a.5.5 0 0 1-.5-.5m0-4a.5.5 0 0 1 .5-.5h9a.5.5 0 0 1 0 1h-9a.5.5 0 0 1-.5-.5m0-4a.5.5 0 0 1 .5-.5h9a.5.5 0 0 1 0 1h-9a.5.5 0 0 1-.5-.5m-3 1a1 1 0 1 0 0-2 1 1 0 0 0 0 2m0 4a1 1 0 1 0 0-2 1 1 0 0 0 0 2m0 4a1 1 0 1 0 0-2 1 1 0 0 0 0 2"/>
+        </svg>
+    }
+
+    function Ol() {
+        return <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" fill="currentColor"
+                    className="bi bi-list-ol" viewBox="0 0 16 16">
+            <path fillRule="evenodd"
+                  d="M5 11.5a.5.5 0 0 1 .5-.5h9a.5.5 0 0 1 0 1h-9a.5.5 0 0 1-.5-.5m0-4a.5.5 0 0 1 .5-.5h9a.5.5 0 0 1 0 1h-9a.5.5 0 0 1-.5-.5m0-4a.5.5 0 0 1 .5-.5h9a.5.5 0 0 1 0 1h-9a.5.5 0 0 1-.5-.5"/>
+            <path
+                d="M1.713 11.865v-.474H2c.217 0 .363-.137.363-.317 0-.185-.158-.31-.361-.31-.223 0-.367.152-.373.31h-.59c.016-.467.373-.787.986-.787.588-.002.954.291.957.703a.595.595 0 0 1-.492.594v.033a.615.615 0 0 1 .569.631c.003.533-.502.8-1.051.8-.656 0-1-.37-1.008-.794h.582c.008.178.186.306.422.309.254 0 .424-.145.422-.35-.002-.195-.155-.348-.414-.348h-.3zm-.004-4.699h-.604v-.035c0-.408.295-.844.958-.844.583 0 .96.326.96.756 0 .389-.257.617-.476.848l-.537.572v.03h1.054V9H1.143v-.395l.957-.99c.138-.142.293-.304.293-.508 0-.18-.147-.32-.342-.32a.33.33 0 0 0-.342.338zM2.564 5h-.635V2.924h-.031l-.598.42v-.567l.629-.443h.635z"/>
+        </svg>
+    }
+
+
     return <>
         <div id={"nav-bar"} className={"sticky top-0 bg-white z-10"}>
-            <EditButton selectedtext={text.current} setIsBlock={isBlockColor} replaceElement={replaceElement} name="i"
+            <EditButton selectedtext={text.current} name="i"
                         component={Italic}/>
-            <EditButton selectedtext={text.current} setIsBlock={isBlockColor} replaceElement={replaceElement} name="b"
+            <EditButton selectedtext={text.current} name="b"
                         component={Bold}/>
-            <EditButton selectedtext={text.current} setIsBlock={isBlockColor} replaceElement={replaceElement} name="u"
+            <EditButton selectedtext={text.current} name="u"
                         component={Underline}/>
-            <EditButton selectedtext={text.current} setIsBlock={isBlockColor} replaceElement={replaceElement} name="s"
+            <EditButton selectedtext={text.current} name="s"
                         component={Strikethrough}/>
-            <EditButton selectedtext={text.current} setIsBlock={isBlockColor} replaceElement={replaceElement} name="div"
+            <EditButton selectedtext={text.current} name="div"
                         cl="text-lg"
                         component={Div}/>
-            <EditButton selectedtext={text.current} setIsBlock={isBlockColor} replaceElement={replaceElement} name="h1"
+            <EditButton selectedtext={text.current} name="h1"
                         cl="text-4xl"
                         component={H1}/>
-            <EditButton selectedtext={text.current} setIsBlock={isBlockColor} replaceElement={replaceElement} name="h2"
+            <EditButton selectedtext={text.current} name="h2"
                         cl="text-3xl"
                         component={H2}/>
-            <EditButton selectedtext={text.current} setIsBlock={isBlockColor} replaceElement={replaceElement} name="h3"
+            <EditButton selectedtext={text.current} name="h3"
                         cl="text-2xl"
                         component={H3}/>
-            <EditButton selectedtext={text.current} setIsBlock={isBlockColor} replaceElement={replaceElement} name="h4"
+            <EditButton selectedtext={text.current} name="h4"
                         cl="text-xl"
                         component={H4}/>
-            <EditButton selectedtext={text.current} setIsBlock={isBlockColor} replaceElement={replaceElement} name="h5"
+            <EditButton selectedtext={text.current} name="h5"
                         cl="text-xl"
                         component={H5}/>
+            <EditButton selectedtext={text.current} name="ul"
+                        cl="text-lg"
+                        component={Ul}/>
+            <EditButton selectedtext={text.current} name="ol"
+                        cl="text-lg"
+                        component={Ol}/>
         </div>
 
         <ContentEditable disabled={false} tagName="div" onFocus={focus}

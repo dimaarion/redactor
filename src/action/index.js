@@ -374,3 +374,120 @@ export  const rawContent = {
         },
     },
 };
+
+
+function listItem(ititalTegs, list, subList) {
+    let oldteg = document.createElement(list);
+    let dataD = "list";
+
+    function att(o, d) {
+        return o.setAttribute("class", d);
+    }
+    function rCild(b, n, l, s) {
+        if (b.parentNode) {
+            if (b.tagName === "LI" || b.tagName === "OL") {
+                b.innerHTML =
+                    "<" + l + "><" + s + ">" + b.innerHTML + "</" + s + "></" + l + ">";
+            } else {
+                b.parentNode.replaceChild(n, b);
+                let li = document.body.appendChild(document.createElement(s));
+                n.appendChild(li);
+                li.innerHTML = b.innerHTML;
+            }
+        }
+    }
+
+    rCild(ititalTegs, oldteg, list, subList);
+    att(oldteg, dataD);
+}
+
+
+
+
+export function selectedStyles(props, tag = "span", href = false, styles = false) {
+    function replaceSelected() {
+        let b = document.createElement(tag);
+
+        if (href !== false) {
+            b.setAttribute("href", href);
+        }
+        if (styles !== false) {
+            b.setAttribute("style", styles);
+        }
+        let range = window.getSelection();
+
+        let parentBlock = Array.from(range.anchorNode.parentElement.classList).filter((f) => f === "content-redactor").length;
+        if (range.getRangeAt(0).getClientRects().item(0) !== null && range.getRangeAt(0).getClientRects().item(0).width > 0) {
+            let documentFragment = range.getRangeAt(0).extractContents();
+
+            if(tag === 'ul'){
+                let li = document.createElement("li");
+                b.appendChild(li);
+                li.appendChild(documentFragment)
+            }else {
+                b.appendChild(documentFragment);
+            }
+            range.getRangeAt(0).insertNode(b);
+        } else {
+            if (parentBlock === 0) {
+                let cl = "";
+                let st = "";
+                document.querySelector(".content-redactor").querySelectorAll("*").forEach((el) => {
+                    if (el === range.anchorNode.parentElement) {
+                        if (range.anchorNode.parentElement.hasAttribute("class")) {
+                            cl = range.anchorNode.parentElement.className;
+                        } else {
+                            cl = "text-lg"
+                        }
+
+                        if(props.cl){
+                            cl =  props.cl
+                        }
+
+
+                        if (range.anchorNode.parentElement.hasAttribute("style")) {
+                            st = 'style="'+ range.anchorNode.parentElement.getAttribute("style") +'"' ;
+                        } else {
+                            st = ""
+                        }
+
+                        if (range.anchorNode.parentElement.tagName === tag.toUpperCase()) {
+                            range.anchorNode.parentElement.outerHTML = '<div class="'+ cl +'">' + range.anchorNode.parentElement.innerHTML + '</div>';
+                        } else {
+                            if(tag === "ul" || tag === "ol"){
+                                listItem(range.anchorNode.parentElement,  tag, 'li')
+                               // range.anchorNode.parentElement.outerHTML = '<' + tag + ' class="' + cl + '" '+ st +' ><li>' + range.anchorNode.parentElement.innerHTML + '</li></' + tag + '>';
+                            }else {
+                                range.anchorNode.parentElement.outerHTML = '<' + tag + ' class="' + cl + '" '+ st +' >' + range.anchorNode.parentElement.innerHTML + '</' + tag + '>';
+                            }
+
+                        }
+
+                    }
+
+                });
+
+            }
+
+        }
+    }
+
+    if (props.selectedtext) {
+        return replaceSelected();
+    }
+}
+
+
+export function isBlockColor(){
+    document.querySelector(".content-redactor").addEventListener("click", (e) => {
+        document.querySelector("#nav-bar").querySelectorAll("button").forEach((el) => {
+
+            if (e.target.tagName === el.getAttribute("data-tag") || e.target.parentElement.tagName === el.getAttribute("data-tag")) {
+                el.classList.replace("bg-white", "bg-gray-300")
+            } else {
+                el.classList.replace("bg-gray-300", "bg-white")
+            }
+        })
+
+    })
+}
